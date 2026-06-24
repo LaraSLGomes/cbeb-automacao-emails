@@ -4,16 +4,18 @@ import email
 from email.mime.text import MIMEText
 import pandas as pd
 from openai import OpenAI
+import os
+from dotenv import load_model_array, load_dotenv
 
-# 1. CONFIGURAÇÕES E CREDENCIAIS
 
-IA_API_KEY = "sua_chave_da_api_aqui"
+load_dotenv()
 
-# dados email
-EMAIL_USER = "seu_email@institucional.edu.br" 
-EMAIL_PASS = "SuaSenhaNormalDeAcesso" 
+# pega as senhas direto do sistema, sem expor no arquivo
+IA_API_KEY = os.getenv("IA_API_KEY")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
 
 # servidores padrão 
+EMAIL_USER = "cbeb2026@sbeb.org.br" 
 IMAP_SERVER = "imap.gmail.com"
 SMTP_SERVER = "smtp.gmail.com"
 
