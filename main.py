@@ -5,12 +5,10 @@ from email.mime.text import MIMEText
 import pandas as pd
 from openai import OpenAI
 import os
-from dotenv import load_model_array, load_dotenv
-
+from dotenv import load_dotenv  
 
 load_dotenv()
 
-# pega as senhas direto do sistema, sem expor no arquivo
 IA_API_KEY = os.getenv("IA_API_KEY")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 
@@ -21,10 +19,9 @@ SMTP_SERVER = "smtp.gmail.com"
 
 client = OpenAI(api_key=IA_API_KEY)
 
-# 2. CARREGAR A BASE DE CONHECIMENTO
+# CARREGAR A BASE DE CONHECIMENTO
 def carregar_base_conhecimento():
     try:
-        # lê o arquivo do excel
         df = pd.read_excel("perguntas_respostas.xlsx")
         contexto = ""
         for _, linha in df.iterrows():
@@ -34,7 +31,7 @@ def carregar_base_conhecimento():
         print(f"Erro ao carregar a planilha: {e}")
         return None
 
-# 3. GERAR RESPOSTA COM IA (CONTEXTUALIZADA)
+# GERAR RESPOSTA COM IA (CONTEXTUALIZADA)
 def gerar_resposta_ia(corpo_email, base_conhecimento):
     prompt_sistema = f"""
     Você é um assistente de atendimento automatizado focado em responder e-mails institucionais. 
@@ -50,12 +47,12 @@ def gerar_resposta_ia(corpo_email, base_conhecimento):
     """
     
     response = client.chat.completions.create(
-        model="gpt-4o-mini",  # modelo rápido e econômico
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": prompt_sistema},
             {"role": "user", "content": f"E-mail recebido:\n{corpo_email}"}
         ],
-        temperature=0.2  # evitar que a IA invente dados (alucinação)
+        temperature=0.2
     )
     return response.choices[0].message.content
 
@@ -91,7 +88,6 @@ def processar_emails():
         print("Verifique se seu e-mail/senha estão corretos ou se o servidor IMAP exige configurações da instituição.")
         return
 
-    # busca por e-mails não lidos (UNSEEN)
     status, mensagens = mail.search(None, 'UNSEEN')
     ids_emails = mensagens[0].split()
     
@@ -111,32 +107,30 @@ def processar_emails():
                 remetente = email.utils.parseaddr(msg['From'])[1]
                 assunto = msg['Subject']
                 
-                # pula respostas automáticas dele mesmo para evitar loops infinitos
                 if remetente == EMAIL_USER:
                     continue
                 
-                # extrai o corpo do e-mail em formato texto simples
                 corpo = ""
                 if msg.is_multipart():
                     for parte in msg.walk():
                         if parte.get_content_type() == "text/plain":
-                            corpo = parte.get_payload(decode=True).decode(errors='ignore')
+                            payload = parte.get_payload(decode=True)
+                            corpo = payload.decode(errors='ignore') if payload else ""
                             break
                 else:
-                    corpo = msg.get_payload(decode=True).decode(errors='ignore')
+                    payload = msg.get_payload(decode=True)
+                    corpo = payload.decode(errors='ignore') if payload else ""
 
                 print(f"\nProcessando e-mail de: {remetente} | Assunto: {assunto}")
                 
-                # processamento com IA baseada na Planilha
                 resposta_final = gerar_resposta_ia(corpo, base)
                 
                 if resposta_final.strip() == "REPASSO_HUMANO":
                     print(f"-> IA não encontrou a resposta na planilha. Mantendo como não lido para suporte humano.")
-                    # remove a marcação de lido para que você veja na sua caixa normal
+                    # remove a flag de lido explicitamente para garantir a sincronização
                     mail.store(num, '-FLAGS', '\\Seen')
                 else:
                     enviar_email(remetente, assunto, resposta_final)
-                    # marca permanentemente como lido apenas se respondeu
                     mail.store(num, '+FLAGS', '\\Seen')
 
     mail.close()
